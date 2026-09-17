@@ -1,6 +1,7 @@
 
 ### v3.8.3
   - Fix corrupted document when data contains the characters `\uFFFE` or `\uFFFF`, which are forbidden in XML
+  - Fix corrupted document when a marker contains a double quote and is used in an XML attribute, such as a table of contents entry in ODT
 
 ### v3.8.2
   - Release: April 3rd 2026
