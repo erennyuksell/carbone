@@ -1,4 +1,10 @@
 
+### v3.8.2
+  - Release: April 3rd 2026
+  - Fix a critical security issue identified in a recent audit
+  - Add limits `maxTemplateUncompressedSize` (200 MB by default) for unzipped templates to improve resistance to zip bomb denial-of-service attacks
+  - Align the version published on npm with the Enterprise Edition version. All fixes between v3.5.6 and v3.8.2 do not affect the npm version, but we are aligning the version numbers for simplicity.
+
 ### v3.5.6
   - Release June 12th 2024
   - Fix: removed the possibility of prototype pollution in formatters. This can only occur if the parent NodeJS application has the same security issue. CVSS:3.0/AV:N/AC:H/PR:L/UI:N/S:C/C:H/I:H/A:H.
