@@ -59,6 +59,11 @@ LibreOffice profiles left in `tempPath` by a Node process that stopped without c
 when the next factory starts. A profile is named after the process which created it; profiles of running processes are
 kept.
 
+`reuseOfficeProfile: true` (off by default) keeps the profile of the first LibreOffice which starts in `tempPath`, and
+the next factories, also after a restart of Node, start from a copy of it. A new profile makes LibreOffice set it up and
+restart itself on its first start: two factories were ready in 1.2 s instead of 3.2 s (LibreOffice 24.8, macOS). A new
+LibreOffice version gets a new template.
+
 Render options of the fork, all off by default:
 
 - `imageUrls: true`: `imageSize` also accepts http and https URLs and downloads them (10 s, 20 MB). Leave it off when the data can come from users, otherwise the server requests any address found in the data.

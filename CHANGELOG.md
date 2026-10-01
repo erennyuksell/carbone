@@ -12,6 +12,8 @@
     documents
   - Fix: the LibreOffice profiles left in `tempPath` by a Node process which stopped without cleaning are removed when
     the next factory starts
+  - New param `reuseOfficeProfile` (off by default): new factories start from a copy of the first ready LibreOffice
+    profile instead of an empty one, without the restart LibreOffice does on a new profile
   - Fix corrupted document when data contains the characters `\uFFFE` or `\uFFFF`, which are forbidden in XML
   - Fix corrupted document when a marker contains a double quote and is used in an XML attribute, such as a table of contents entry in ODT
 

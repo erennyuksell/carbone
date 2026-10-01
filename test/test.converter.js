@@ -782,4 +782,59 @@ describe('Converter', function () {
     });
   });
 
+  describe('reuseOfficeProfile', function () {
+    var _templates = function () {
+      return fs.readdirSync(tempPath).filter(function (name) {
+        return /^_office_template_/.test(name);
+      });
+    };
+    afterEach(function (done) {
+      params.reuseOfficeProfile = false;
+      params.converterBlockExternalLinks = false;
+      converter.exit(function () {
+        converter.init(defaultOptions, done);
+      });
+    });
+    it('should keep no template by default', function (done) {
+      converter.init({ factories : 1, startFactory : true, tempPath : tempPath }, function () {
+        assert.deepStrictEqual(_templates(), []);
+        done();
+      });
+    });
+    it('should keep the first ready profile as template and start the next factories from a copy of it', function (done) {
+      var _options = { factories : 1, startFactory : true, tempPath : tempPath, reuseOfficeProfile : true };
+      converter.init(_options, function () {
+        var _names = _templates();
+        assert.strictEqual(_names.length, 1);
+        var _template = path.join(tempPath, _names[0]);
+        assert.ok(fs.existsSync(path.join(_template, 'user', 'registrymodifications.xcu')), 'the template is a complete profile');
+        assert.strictEqual(fs.existsSync(path.join(_template, '.lock')), false, 'without the lock of the running LibreOffice');
+        // a marker in the template must appear in the profile of the next factory
+        fs.writeFileSync(path.join(_template, 'user', 'carbone-template-marker.txt'), 'template');
+        converter.exit(function () {
+          converter.init(_options, function (factories) {
+            var _profile = factories['0'].userCachePath;
+            assert.strictEqual(fs.readFileSync(path.join(_profile, 'user', 'carbone-template-marker.txt'), 'utf8'), 'template');
+            assert.deepStrictEqual(_templates(), _names, 'the template survives the exit');
+            done();
+          });
+        });
+      });
+    });
+    it('should not keep converterBlockExternalLinks in the template, so that the option can be turned off later', function (done) {
+      _templates().forEach(function (name) {
+        helper.rmDirRecursive(path.join(tempPath, name));
+      });
+      var _settings = function (profile) {
+        return fs.readFileSync(path.join(profile, 'user', 'registrymodifications.xcu'), 'utf8');
+      };
+      var _options = { factories : 1, startFactory : true, tempPath : tempPath, reuseOfficeProfile : true, converterBlockExternalLinks : true };
+      converter.init(_options, function (factories) {
+        assert.ok(_settings(factories['0'].userCachePath).indexOf('BlockUntrustedRefererLinks') !== -1, 'the factory blocks links');
+        assert.strictEqual(_settings(path.join(tempPath, _templates()[0])).indexOf('BlockUntrustedRefererLinks'), -1, 'the template does not');
+        done();
+      });
+    });
+  });
+
 });
