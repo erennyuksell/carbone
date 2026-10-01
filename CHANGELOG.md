@@ -1,5 +1,7 @@
 
 ### v3.8.3
+  - Fix: Node no longer crashes when the factories are started without LibreOffice installed, and a process that
+    cannot be started is retried after 5 seconds instead of in a loop
   - Security: LibreOffice and its Python bridge get only the environment variables they need to run, not the secrets of
     the Node process. New option `converterEnv` to add variables (`process.env` restores the previous behavior)
   - Fix corrupted document when data contains the characters `\uFFFE` or `\uFFFF`, which are forbidden in XML
