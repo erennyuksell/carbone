@@ -31,6 +31,33 @@
 
 <p><b>⚡️ Fast, Simple and Powerful report generator</b> in any format PDF, DOCX, XLSX, ODT, PPTX, ODS, XML, CSV using templates and your JSON data as input !</p>
 
+## This fork
+
+This is Carbone 3.8.2 (`carboneio/carbone` master) with a few additions. A template that uses none of
+them renders exactly as with Carbone 3.8.2, and the data passed to `render` is never modified.
+
+Install it from git: `npm install git+https://github.com/erennyuksell/carbone.git#<commit>`.
+
+| Addition | Template | Works in |
+|---|---|---|
+| Remove an element when a condition is true | `{d.note:ifEM():drop(p)}`, `drop(tr)`, `drop(tc)`, `drop(tbl)`; `drop(row)` in a sheet | DOCX, XLSX |
+| Picture from a data URI | `{d.photo:imageSize(120)}` (width in points), `imageSize(120,80)`, `imageSize()` | DOCX |
+| Picture from the alternative text of a template picture | title or description of the picture set to `{d.photo}` | DOCX, ODT |
+| Text style | `fontColor(#FF0000)`, `fontSize(14)`, `fontBold()`, `fontFamily(Arial)`, also with `.path` arguments | DOCX |
+| Async formatters | a formatter added with `addFormatters` may return a promise | all |
+
+Pictures are data URIs (`data:image/png;base64,...`). A picture repeated in a loop shows the picture of each row.
+
+Render options of the fork, all off by default:
+
+- `imageUrls: true`: `imageSize` also accepts http and https URLs and downloads them (10 s, 20 MB). Leave it off when the data can come from users, otherwise the server requests any address found in the data.
+- `fontOptions: { fontFamily, fontSize, fontBold }`: change the font written in every run of a Word document.
+- `keepLeadingSpace: true`: a value starting with a space starts with two non-breaking spaces, so Word shows the space.
+- `wrapPrimitiveArrays: true`: `['a', 'b']` becomes `[{ value : 'a' }, { value : 'b' }]`, to loop over it with `{d.list[i].value}`.
+
+The formatters write a marker that is handled after rendering. Each render uses its own random marker,
+so text in the data that looks like a formatter (`:drop(p)`, `:imageSize(...)`) is printed as text.
+
 ### News 2026/04
 
 [Join us on our Discord](https://discord.gg/kKB3aPYqnh)
@@ -328,3 +355,4 @@ Thanks to all Carbone contributors (random order)
   - Léo Labruyère
   - Aurélien Kermabon
   - [Steeve Payraudeau](https://github.com/steevepay)
+
