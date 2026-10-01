@@ -52,6 +52,9 @@ PDF export options reach LibreOffice: `convertTo: { formatName: 'pdf', formatOpt
 Upstream Carbone 3 accepted them but never passed them on. Any option of LibreOffice's `writer_pdf_Export` filter can be
 given as a boolean, a number or a string (LibreOffice 7.4 or later).
 
+`factoryRecycleAfter: 200` restarts a LibreOffice process after it converted 200 documents (LibreOffice's memory grows
+with use). Off by default; it works next to the memory rule (`factoryMemoryFileSize`, `factoryMemoryThreshold`).
+
 Render options of the fork, all off by default:
 
 - `imageUrls: true`: `imageSize` also accepts http and https URLs and downloads them (10 s, 20 MB). Leave it off when the data can come from users, otherwise the server requests any address found in the data.

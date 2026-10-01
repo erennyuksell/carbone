@@ -32,7 +32,6 @@ describe('Converter', function () {
     carbone.reset();
   });
 
-
   describe('shouldTheFactoryBeRestarted', function () {
     it('should return not restart LO if factoryMemoryFileSize = 0 or factoryMemoryThreshold = 0', function () {
       var _params = {
@@ -657,7 +656,6 @@ describe('Converter', function () {
     });
   });
 
-
   describe('links of a document', function () {
     var PICTURE = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=', 'base64');
     var _server = null;
@@ -722,4 +720,40 @@ describe('Converter', function () {
       });
     });
   });
+
+  describe('factoryRecycleAfter', function () {
+    afterEach(function (done) {
+      converter.exit(function () {
+        converter.init(defaultOptions, done);
+      });
+      carbone.reset();
+    });
+    it('should restart LibreOffice after factoryRecycleAfter documents, not before', function (done) {
+      var _filePath = path.resolve('./test/datasets/test_odt_render_static.odt');
+      var _options = { factories : 1, startFactory : true, tempPath : tempPath, factoryRecycleAfter : 3, factoryMemoryThreshold : 0 };
+      converter.init(_options, function (factories) {
+        var _firstPID = factories['0'].pid;
+        var _pids = [];
+        var _convert = function (index) {
+          if (index === 4) {
+            // documents 1 to 3 in the first process, the 4th in a new one
+            assert.deepStrictEqual(_pids.slice(0, 3), [_firstPID, _firstPID, _firstPID]);
+            assert.notEqual(_pids[3], _firstPID);
+            return done();
+          }
+          var _outputPath = path.join(tempPath, 'recycle_' + index + '.pdf');
+          converter.convertFile(_filePath, 'writer_pdf_Export', '', _outputPath, function (err) {
+            helper.assert(err+'', 'null');
+            _pids.push(factories['0'].pid);
+            // the process is killed right after the 3rd document: wait for the new one before the next document
+            setTimeout(function () {
+              _convert(index + 1);
+            }, index === 2 ? 1000 : 0);
+          });
+        };
+        _convert(0);
+      });
+    });
+  });
+
 });
