@@ -70,6 +70,7 @@ Render options of the fork, all off by default:
 - `fontOptions: { fontFamily, fontSize, fontBold }`: change the font written in every run of a Word document.
 - `keepLeadingSpace: true`: a value starting with a space starts with two non-breaking spaces, so Word shows the space.
 - `wrapPrimitiveArrays: true`: `['a', 'b']` becomes `[{ value : 'a' }, { value : 'b' }]`, to loop over it with `{d.list[i].value}`.
+- `trimTrailingParagraphs: true`: remove the empty paragraphs at the end of a Word document (blank lines after the last table, paragraphs left empty by markers). When the content fills the page they push a blank page into the PDF. Paragraphs with a picture, a field, a bookmark or a section break are kept; after a final table one paragraph of 1 point stays.
 
 The formatters write a marker that is handled after rendering. Each render uses its own random marker,
 so text in the data that looks like a formatter (`:drop(p)`, `:imageSize(...)`) is printed as text.
