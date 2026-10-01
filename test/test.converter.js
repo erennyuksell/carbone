@@ -6,7 +6,8 @@ var os = require('os');
 var helper = require('../lib/helper');
 var converter = require('../lib/converter');
 var params = require('../lib/params');
-var exec = require('child_process').exec;
+var childProcess = require('child_process');
+var exec = childProcess.exec;
 var tempPath = path.join(__dirname, 'temp');
 
 var defaultOptions = {
@@ -557,6 +558,72 @@ describe('Converter', function () {
             exec('rm -rf '+_otherFile, done);
           }, 4000);
         });
+      });
+    });
+  });
+
+  describe('environment of LibreOffice and Python', function () {
+    var _originalSpawn = childProcess.spawn;
+    var _spawned = [];
+    beforeEach(function (done) {
+      _spawned = [];
+      childProcess.spawn = function (command, args, options) {
+        _spawned.push({ command : command, options : options });
+        return _originalSpawn.apply(this, arguments);
+      };
+      converter.exit(done);
+    });
+    afterEach(function (done) {
+      childProcess.spawn = _originalSpawn;
+      delete process.env.CARBONE_TEST_SECRET;
+      params.converterEnv = {};
+      converter.exit(function () {
+        converter.init(defaultOptions, done);
+      });
+    });
+    it('should keep only the variables LibreOffice and Python need, then add converterEnv', function () {
+      var _env = converter.buildEnvironment({
+        PATH              : '/usr/bin',
+        Path              : 'C:\\Windows',
+        HOME              : '/home/carbone',
+        LANG              : 'tr_TR.UTF-8',
+        LC_ALL            : 'C.UTF-8',
+        SAL_USE_VCLPLUGIN : 'svp',
+        MONGODB_URI       : 'mongodb://user:password@host/db',
+        JWT_SECRET        : 'secret',
+        AWS_SECRET_ACCESS_KEY : 'secret'
+      }, { FONTCONFIG_SYSROOT : '/fonts' });
+      assert.deepStrictEqual(_env, {
+        PATH               : '/usr/bin',
+        Path               : 'C:\\Windows',
+        HOME               : '/home/carbone',
+        LANG               : 'tr_TR.UTF-8',
+        LC_ALL             : 'C.UTF-8',
+        SAL_USE_VCLPLUGIN  : 'svp',
+        FONTCONFIG_SYSROOT : '/fonts'
+      });
+    });
+    it('should give everything when converterEnv is process.env, as before', function () {
+      process.env.CARBONE_TEST_SECRET = 'visible';
+      var _env = converter.buildEnvironment(process.env, process.env);
+      assert.strictEqual(_env.CARBONE_TEST_SECRET, 'visible');
+    });
+    it('should not give the secrets of the parent process to LibreOffice and Python', function (done) {
+      process.env.CARBONE_TEST_SECRET = 'not-for-libreoffice';
+      converter.init({ factories : 1, startFactory : true, tempPath : tempPath }, function (factories) {
+        assert.strictEqual(_spawned.length, 2);
+        _spawned.forEach(function (spawned) {
+          assert.ok(spawned.options.env.PATH, spawned.command + ' gets PATH');
+          assert.strictEqual(spawned.options.env.CARBONE_TEST_SECRET, undefined, spawned.command + ' does not get the secret');
+        });
+        // On Linux, read the environment of the running processes too (macOS does not show it for signed apps)
+        if (process.platform === 'linux') {
+          [factories[0].pid, factories[0].pythonThread.pid].forEach(function (pid) {
+            var _environ = fs.readFileSync('/proc/' + pid + '/environ', 'utf8');
+            assert.strictEqual(_environ.indexOf('CARBONE_TEST_SECRET'), -1);
+          });
+        }
+        done();
       });
     });
   });
