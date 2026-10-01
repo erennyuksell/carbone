@@ -29,17 +29,17 @@ describe('builder', function () {
     });
     it('should return a simple call of a function for a formatter without arguments', function () {
       var _actual = builder.getFormatterString(_getSafeValue, '_str', 'context', [ 'int' ], _testedFormatters);
-      helper.assert(_actual, '_str = formatters.int.call(context, _str);\n');
+      helper.assert(_actual, '_str = await formatters.int.call(context, _str);\n');
       helper.assert(_safeAccessor.getDictionary(), []);
     });
     it('should return a simple call of a function for a formatter without arguments but called with parenthesis', function () {
       var _actual = builder.getFormatterString(_getSafeValue, '_otherString', '_meta', [ 'int()' ], _testedFormatters);
-      helper.assert(_actual, '_otherString = formatters.int.call(_meta, _otherString);\n');
+      helper.assert(_actual, '_otherString = await formatters.int.call(_meta, _otherString);\n');
       helper.assert(_safeAccessor.getDictionary(), []);
     });
     it('should return a call of a function for a formatter with one argument', function () {
       var _actual = builder.getFormatterString(_getSafeValue, '_str', '_options', [ 'toFixed(2)' ], _testedFormatters);
-      helper.assert(_actual,  '_str = formatters.toFixed.call(_options, _str, dictionary[0]);\n');
+      helper.assert(_actual,  '_str = await formatters.toFixed.call(_options, _str, dictionary[0]);\n');
       helper.assert(_safeAccessor.getDictionary(), ['2']);
     });
     it('should return a call of a function for a formatter with one argument which is a string', function () {
@@ -68,10 +68,10 @@ describe('builder', function () {
     });
     it('should return two calls of functions for two chained formatters', function () {
       var _actual = builder.getFormatterString(_getSafeValue, '_str', '_options', [ 'int', 'toFixed(2)' ], _testedFormatters);
-      // helper.assert(_actual, '_str = formatters.toFixed.call(_options, formatters.int(d.number), \'2\');');
-      helper.assert(_actual, '_str = formatters.int.call(_options, _str);\n'
+      // helper.assert(_actual, '_str = await formatters.toFixed.call(_options, formatters.int(d.number), \'2\');');
+      helper.assert(_actual, '_str = await formatters.int.call(_options, _str);\n'
                            +'if(_options.stopPropagation === false){\n'
-                           +  '_str = formatters.toFixed.call(_options, _str, dictionary[0]);\n'
+                           +  '_str = await formatters.toFixed.call(_options, _str, dictionary[0]);\n'
                            +'}');
       helper.assert(_safeAccessor.getDictionary(), ['2']);
     });
@@ -81,11 +81,11 @@ describe('builder', function () {
     });
     it('should return three calls of functions for three chained formatters each with arguments', function () {
       var _actual = builder.getFormatterString(_getSafeValue, '_str', '_options', [ 'formatter1(4, 5)', 'formatter2(2, 3)', 'print(\'ok\')' ], _testedFormatters);
-      assert.equal(_actual, '_str = formatters.formatter1.call(_options, _str, dictionary[0], dictionary[1]);\n'
+      assert.equal(_actual, '_str = await formatters.formatter1.call(_options, _str, dictionary[0], dictionary[1]);\n'
                            +'if(_options.stopPropagation === false){\n'
-                           +  '_str = formatters.formatter2.call(_options, _str, dictionary[2], dictionary[3]);\n'
+                           +  '_str = await formatters.formatter2.call(_options, _str, dictionary[2], dictionary[3]);\n'
                            +  'if(_options.stopPropagation === false){\n'
-                           +    '_str = formatters.print.call(_options, _str, dictionary[4]);\n'
+                           +    '_str = await formatters.print.call(_options, _str, dictionary[4]);\n'
                            +  '}'
                            +'}');
       helper.assert(_safeAccessor.getDictionary(), ['4', '5', '2', '3', 'ok']);
@@ -93,10 +93,10 @@ describe('builder', function () {
     it('should return formatter code according to the filter "canInjectXML"', function () {
       _testedFormatters.convCRLF.canInjectXML = true;
       var _actual = builder.getFormatterString(_getSafeValue, '_str', '_options', [ 'convCRLF()', 'formatter1(4)' ], _testedFormatters);
-      helper.assert(_actual, '_str = formatters.formatter1.call(_options, _str, dictionary[0]);\n');
+      helper.assert(_actual, '_str = await formatters.formatter1.call(_options, _str, dictionary[0]);\n');
 
       _actual = builder.getFormatterString(_getSafeValue, '_str', '_options', [ 'convCRLF()', 'formatter1(4)' ], _testedFormatters, true);
-      helper.assert(_actual, '_str = formatters.convCRLF.call(_options, _str);\n');
+      helper.assert(_actual, '_str = await formatters.convCRLF.call(_options, _str);\n');
     });
   });
 
@@ -752,7 +752,7 @@ describe('builder', function () {
       }
       return arrayParts;
     }
-    it('should return a function which returns an array of xml parts for static data if dynamicData is empty', function () {
+    it('should return a function which returns an array of xml parts for static data if dynamicData is empty', async function () {
       var _desc = {
         staticData : {
           before : '<xml>',
@@ -762,10 +762,10 @@ describe('builder', function () {
         dynamicData : {}
       };
       var _fn = builder.getBuilderFunction(_desc);
-      helper.assert(_fn(null, {}, helper, _fn.builderDictionary), [{pos : [0], str : '', bef : 0}, {pos : [1], str : '', aft : 1}]);
+      helper.assert((await _fn(null, {}, helper, _fn.builderDictionary)), [{pos : [0], str : '', bef : 0}, {pos : [1], str : '', aft : 1}]);
       helper.assert(_fn.builderDictionary, ['<xml>', '</xml>']);
     });
-    it('should return an array of xml parts according to the descriptor, the data and the formatters', function (done) {
+    it('should return an array of xml parts according to the descriptor, the data and the formatters', async function () {
       var _desc = {
         staticData : {
           before : '',
@@ -789,13 +789,12 @@ describe('builder', function () {
         number : 24.55
       };
       var _fn = builder.getBuilderFunction(_desc, input.formatters);
-      helper.assert(simplify(_fn.builderDictionary, _fn(_data, {formatters : input.formatters}, helper, _fn.builderDictionary)), [
+      helper.assert(simplify(_fn.builderDictionary, (await _fn(_data, {formatters : input.formatters}, helper, _fn.builderDictionary))), [
         {pos : [5 ],str : '<xml>24', rowShow : true},
         {pos : [6 ],str : '</xml>'}
       ]);
-      done();
     });
-    it('should manage multiple attributes in the main object "_root"', function () {
+    it('should manage multiple attributes in the main object "_root"', async function () {
       var _desc = {
         staticData : {
           before : '',
@@ -823,14 +822,14 @@ describe('builder', function () {
         surname   : 'Neo'
       };
       var _fn = builder.getBuilderFunction(_desc);
-      helper.assert(simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary)), [
+      helper.assert(simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary))), [
         {pos : [8  ],str : '<xml><p>Thomas', rowShow : true},
         {pos : [15 ],str : '</p><p>A. Anderson', rowShow : true},
         {pos : [22 ],str : '</p><p>Neo', rowShow : true},
         {pos : [23 ],str : '</p></xml>'}
       ]);
     });
-    it('should return only the xml if the data is empty or null or if one of the attribute does not exist. (the object formatters is not provided)', function () {
+    it('should return only the xml if the data is empty or null or if one of the attribute does not exist. (the object formatters is not provided)', async function () {
       var _desc = {
         staticData : {
           before : '',
@@ -854,15 +853,15 @@ describe('builder', function () {
       };
       var _fn = builder.getBuilderFunction(_desc);
       var _data = {};
-      helper.assert(simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary)), [{pos : [8], str : '<xml><p>', rowShow : true}, {pos : [15], str : '</p><p>', rowShow : true}, {pos : [22], str : '</p><p>', rowShow : true}, {pos : [23], str : '</p></xml>'}]);
-      helper.assert(simplify(_fn.builderDictionary, _fn(null, {}, helper, _fn.builderDictionary)), [{pos : [8], str : '<xml><p>', rowShow : true}, {pos : [15], str : '</p><p>', rowShow : true}, {pos : [22], str : '</p><p>', rowShow : true}, {pos : [23], str : '</p></xml>'}]);
+      helper.assert(simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary))), [{pos : [8], str : '<xml><p>', rowShow : true}, {pos : [15], str : '</p><p>', rowShow : true}, {pos : [22], str : '</p><p>', rowShow : true}, {pos : [23], str : '</p></xml>'}]);
+      helper.assert(simplify(_fn.builderDictionary, (await _fn(null, {}, helper, _fn.builderDictionary))), [{pos : [8], str : '<xml><p>', rowShow : true}, {pos : [15], str : '</p><p>', rowShow : true}, {pos : [22], str : '</p><p>', rowShow : true}, {pos : [23], str : '</p></xml>'}]);
       _data = {
         firstname : 'Thomas',
         surname   : 'Neo'
       };
-      helper.assert(simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary)) , [{pos : [8], str : '<xml><p>Thomas', rowShow : true}, {pos : [15], str : '</p><p>', rowShow : true}, {pos : [22], str : '</p><p>Neo', rowShow : true}, {pos : [23], str : '</p></xml>'}]);
+      helper.assert(simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary))) , [{pos : [8], str : '<xml><p>Thomas', rowShow : true}, {pos : [15], str : '</p><p>', rowShow : true}, {pos : [22], str : '</p><p>Neo', rowShow : true}, {pos : [23], str : '</p></xml>'}]);
     });
-    it('should work even if there is a nested object in the descriptor', function () {
+    it('should work even if there is a nested object in the descriptor', async function () {
       var _desc = {
         staticData : {
           before : '',
@@ -905,7 +904,7 @@ describe('builder', function () {
         }
       };
       var _fn = builder.getBuilderFunction(_desc);
-      helper.assert(simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary)), [
+      helper.assert(simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary))), [
         { pos : [ 8 ] , str : '<xml><p>Thomas', rowShow : true},
         { pos : [ 15 ], str : '</p><p>A. Anderson', rowShow : true},
         { pos : [ 40 ], str : '</br><p>Neo', rowShow : true},
@@ -914,7 +913,7 @@ describe('builder', function () {
         { pos : [ 41 ], str : '</p></xml>'}
       ]);
     });
-    it('should travel the object in the correct order using the "hierarchy" array even if the dynamicData object is not built in correct order', function () {
+    it('should travel the object in the correct order using the "hierarchy" array even if the dynamicData object is not built in correct order', async function () {
       var _desc = {
         staticData : {
           before : '',
@@ -957,7 +956,7 @@ describe('builder', function () {
         }
       };
       var _fn = builder.getBuilderFunction(_desc);
-      helper.assert(simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary)), [
+      helper.assert(simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary))), [
         { pos : [ 8  ], str : '<xml><p>Thomas', rowShow : true},
         { pos : [ 15 ], str : '</p><p>A. Anderson', rowShow : true},
         { pos : [ 40 ], str : '</br><p>Neo', rowShow : true},
@@ -966,7 +965,7 @@ describe('builder', function () {
         { pos : [ 41 ], str : '</p></xml>' }
       ]);
     });
-    it('should work if the main object is an array of object', function () {
+    it('should work if the main object is an array of object', async function () {
       var _desc = {
         staticData : {
           before : '<xml> ',
@@ -996,7 +995,7 @@ describe('builder', function () {
         {firstname : 'Trinity',  lastname : 'Unknown'}
       ];
       var _fn = builder.getBuilderFunction(_desc);
-      helper.assert(simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary)), [
+      helper.assert(simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary))), [
         { pos : [ 0        ], str : '<xml> '                           },
         { pos : [ 6, 0, 6 ], str : '<tr><p>'            , rowStart : true},
         { pos : [ 6, 0, 13 ], str : 'Thomas'            , rowShow : true },
@@ -1009,7 +1008,7 @@ describe('builder', function () {
         { pos : [ 30       ], str : ' </xml>'                          }
       ]);
     });
-    it('should insert an empty string and set rowShow=false if the condition is not satisfied', function () {
+    it('should insert an empty string and set rowShow=false if the condition is not satisfied', async function () {
       var _desc = {
         staticData : {
           before : '<xml> ',
@@ -1038,7 +1037,7 @@ describe('builder', function () {
         {firstname : 'Trinity',  lastname : 'Unknown'    , show : '1'}
       ];
       var _fn = builder.getBuilderFunction(_desc);
-      helper.assert(simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary)), [
+      helper.assert(simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary))), [
         { pos : [ 0        ], str : '<xml> '                  },
         { pos : [ 6, 0, 6 ], str : '<tr><p>'   , rowStart : true},
         { pos : [ 6, 0, 13 ], str : ''         , rowShow : false},
@@ -1052,7 +1051,7 @@ describe('builder', function () {
 
 
     // @see test line 822 in test.builder.buildXML.js that where we got our _desc data
-    it('when the template is not using i+1 kind of iterator ( but using filters ), xmlpart who are filtered out should not be added to the xmlParts array ( array to be sorted later ) except when no data fullfill the condition. This will help getting better performance result for this kind of template', function () {
+    it('when the template is not using i+1 kind of iterator ( but using filters ), xmlpart who are filtered out should not be added to the xmlParts array ( array to be sorted later ) except when no data fullfill the condition. This will help getting better performance result for this kind of template', async function () {
       var _desc = {
         staticData : {
           before : '<xml> <t_row> ',
@@ -1148,10 +1147,10 @@ describe('builder', function () {
       };
       var _fn = builder.getBuilderFunction(_desc);
       // console.log('\n\n');
-      // console.log(simplify(_fn.builderDictionary, _fn(_data));
+      // console.log(simplify(_fn.builderDictionary, (await _fn(_data)));
       // console.log('\n\n');
 
-      var _xmlParts = simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary));
+      var _xmlParts = simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary)));
       var _xmlResult = builder.assembleXmlParts(_xmlParts, 20);
 
       helper.assert(_xmlResult, '<xml> <t_row> Toyota </t_row><t_row>  </t_row><t_row> Lumeneo </t_row></xml>');
@@ -1169,7 +1168,7 @@ describe('builder', function () {
 
 
 
-    it('should work if there is an object in the array', function () {
+    it('should work if there is an object in the array', async function () {
       var _desc = {
         staticData : {
           before : '<xml> ',
@@ -1209,7 +1208,7 @@ describe('builder', function () {
         {firstname : 'Trinity',  lastname : 'Unknown', info : {movie : 'matrix2'}}
       ];
       var _fn = builder.getBuilderFunction(_desc);
-      helper.assert(simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary)), [
+      helper.assert(simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary))), [
         { pos : [ 0        ], str : '<xml> '                            },
         { pos : [ 6, 0, 6  ], str : '<tr>'               , rowStart : true},
         { pos : [ 6, 0, 10 ], str : 'Thomas'             , rowShow : true },
@@ -1224,7 +1223,7 @@ describe('builder', function () {
         { pos : [ 30       ], str : ' </xml>'                           }
       ]);
     });
-    it('should work if there are three nested objects in the array (with one missing object in the last row) ', function () {
+    it('should work if there are three nested objects in the array (with one missing object in the last row) ', async function () {
       var _desc = {
         staticData : {
           before : '<xml> ',
@@ -1301,7 +1300,7 @@ describe('builder', function () {
         }
       ];
       var _fn = builder.getBuilderFunction(_desc);
-      helper.assert(simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary)), [
+      helper.assert(simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary))), [
         { pos : [ 0        ], str : '<xml> '                            },
         { pos : [ 6, 0, 6  ], str : '<tr>'               , rowStart : true},
         { pos : [ 6, 0, 10 ], str : 'Thomas'             , rowShow : true },
@@ -1320,7 +1319,7 @@ describe('builder', function () {
         { pos : [ 30       ], str : ' </xml>'                           }
       ]);
     });
-    it('should work if there are two adjacents array of objects', function () {
+    it('should work if there are two adjacents array of objects', async function () {
       var _desc = {
         staticData : {
           before : '<xml> ',
@@ -1376,7 +1375,7 @@ describe('builder', function () {
         ]
       };
       var _fn = builder.getBuilderFunction(_desc);
-      helper.assert(simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary)), [
+      helper.assert(simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary))), [
         { pos : [ 0         ], str : '<xml> '                            },
         { pos : [ 6 , 0, 6  ], str : '<tr>'               , rowStart : true},
         { pos : [ 6 , 0, 10 ], str : 'matrix'             , rowShow : true },
@@ -1393,7 +1392,7 @@ describe('builder', function () {
         { pos : [ 30        ], str : ' </xml>'                           }
       ]);
     });
-    it('Ashould work if there are two adjacents array of objects within main array', function () {
+    it('Ashould work if there are two adjacents array of objects within main array', async function () {
       var _desc = {
         staticData : {
           before : '<x> ',
@@ -1455,7 +1454,7 @@ describe('builder', function () {
         ]
       }];
       var _fn = builder.getBuilderFunction(_desc);
-      var _xmlParts = simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary));
+      var _xmlParts = simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary)));
       builder.sortXmlParts(_xmlParts, 100);
       helper.assert(_xmlParts, [
         { pos : [ 0               ], str : '<x> '                              },
@@ -1476,7 +1475,7 @@ describe('builder', function () {
         { pos : [ 36              ], str : ' </x>'                             }
       ]);
     });
-    it('should work if there are some xml between two adjacents arrays', function () {
+    it('should work if there are some xml between two adjacents arrays', async function () {
       var _desc = {
         staticData : {
           before : '<xml> ',
@@ -1534,7 +1533,7 @@ describe('builder', function () {
         ]
       };
       var _fn = builder.getBuilderFunction(_desc);
-      helper.assert(simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary)), [
+      helper.assert(simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary))), [
         { pos : [ 0         ], str : '<xml> '                            },
         { pos : [ 6         ], str : '<T>'                               },
         { pos : [ 6 , 0, 6  ], str : '<tr>'               , rowStart : true},
@@ -1553,7 +1552,7 @@ describe('builder', function () {
         { pos : [ 30        ], str : ' </xml>'                           }
       ]);
     });
-    it('should manage nested arrays', function () {
+    it('should manage nested arrays', async function () {
       var _desc = {
         staticData : {
           before : '<xml> ',
@@ -1608,7 +1607,7 @@ describe('builder', function () {
       }
       ];
       var _fn = builder.getBuilderFunction(_desc);
-      var _xmlParts = simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary));
+      var _xmlParts = simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary)));
       builder.sortXmlParts(_xmlParts, 100);
       helper.assert(_xmlParts, [
         { pos : [ 0               ], str : '<xml> '                            },
@@ -1634,7 +1633,7 @@ describe('builder', function () {
     });
     it('should manage three level of arrays.\
         It should not crash if the third array is empty or does not exist\
-        It should keep the xml which is between the second and the third array', function () {
+        It should keep the xml which is between the second and the third array', async function () {
       var _desc = {
         staticData : {
           before : '<xml> ',
@@ -1711,7 +1710,7 @@ describe('builder', function () {
       }
       ];
       var _fn = builder.getBuilderFunction(_desc);
-      var _xmlParts = simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary));
+      var _xmlParts = simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary)));
       builder.sortXmlParts(_xmlParts, 100);
       helper.assert(_xmlParts, [
         { pos : [ 0 ], str : '<xml> '                                          },
@@ -1747,7 +1746,7 @@ describe('builder', function () {
         { pos : [ 49 ], str : ' </xml>' } ]
       );
     });
-    it('should work with a custom iterator. It should keep the array interator', function () {
+    it('should work with a custom iterator. It should keep the array interator', async function () {
       var _desc = {
         staticData : {
           before : '<xml> ',
@@ -1776,7 +1775,7 @@ describe('builder', function () {
         {firstname : 'Trinity', sort : 11}
       ];
       var _fn = builder.getBuilderFunction(_desc);
-      helper.assert(simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary)), [
+      helper.assert(simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary))), [
         { pos : [ 0            ], str : '<xml> '                   },
         { pos : [ 6, 31, 0, 6  ], str : '<tr>'      , rowStart : true},
         { pos : [ 6, 31, 0, 13 ], str : 'Thomas'    , rowShow : true },
@@ -1787,7 +1786,7 @@ describe('builder', function () {
         { pos : [ 30           ], str : ' </xml>'                  }
       ]);
     });
-    it('should work even if the custom iterator is inside an object', function () {
+    it('should work even if the custom iterator is inside an object', async function () {
       var _desc = {
         staticData : {
           before : '<xml> ',
@@ -1816,7 +1815,7 @@ describe('builder', function () {
         {firstname : 'Trinity', movie : {sort : 11}}
       ];
       var _fn = builder.getBuilderFunction(_desc);
-      helper.assert(simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary)), [
+      helper.assert(simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary))), [
         { pos : [ 0              ], str : '<xml> '                 },
         { pos : [ 6, 31, 0, 6  ], str : '<tr>'      , rowStart : true},
         { pos : [ 6, 31, 0, 13 ], str : 'Thomas'    , rowShow : true },
@@ -1827,7 +1826,7 @@ describe('builder', function () {
         { pos : [ 30             ], str : ' </xml>'                }
       ]);
     });
-    it('should work even with two nested arrays used in the inverse order. TODO: IMPROVE', function () {
+    it('should work even with two nested arrays used in the inverse order. TODO: IMPROVE', async function () {
       var _desc = {
         staticData : {
           before : '<xml> ',
@@ -1883,7 +1882,7 @@ describe('builder', function () {
       }
       ];
       var _fn = builder.getBuilderFunction(_desc);
-      var _xmlParts = simplify(_fn.builderDictionary, _fn(_data, {}, helper, _fn.builderDictionary));
+      var _xmlParts = simplify(_fn.builderDictionary, (await _fn(_data, {}, helper, _fn.builderDictionary)));
       builder.sortXmlParts(_xmlParts, 100);
       helper.assert(_xmlParts, [
         { pos : [ 0              ], str : '<xml> '                   },
