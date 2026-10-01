@@ -628,4 +628,31 @@ describe('Converter', function () {
     });
   });
 
+  describe('start errors', function () {
+    var _originalSpawn = childProcess.spawn;
+    afterEach(function (done) {
+      childProcess.spawn = _originalSpawn;
+      converter.exit(function () {
+        // the failed start blocks new starts for 5 s: wait before the next tests start LibreOffice
+        setTimeout(function () {
+          converter.init(defaultOptions, done);
+        }, 5500);
+      });
+    });
+    it('should not crash nor loop when LibreOffice cannot be started', function (done) {
+      this.timeout(20000);
+      var _starts = 0;
+      childProcess.spawn = function (command, args, options) {
+        _starts++;
+        return _originalSpawn.call(this, path.join(tempPath, 'missing-executable'), args, options);
+      };
+      converter.init({ factories : 1, startFactory : true, tempPath : tempPath });
+      setTimeout(function () {
+        // one office and one python process tried once, then nothing during the retry delay
+        assert.strictEqual(_starts, 2);
+        done();
+      }, 2000);
+    });
+  });
+
 });

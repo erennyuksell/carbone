@@ -64,6 +64,9 @@ Node process, often secrets such as database passwords, are not passed: a docume
 read environment variables (CVE-2024-12426 before LibreOffice 24.8.4). Add variables with the option
 `converterEnv: { NAME : 'value' }`; `converterEnv: process.env` passes everything, as before.
 
+When LibreOffice is not installed, starting the factories (`startFactory: true`) no longer crashes Node, and a process
+that cannot be started is tried again after 5 seconds instead of in a loop.
+
 ### News 2026/04
 
 [Join us on our Discord](https://discord.gg/kKB3aPYqnh)
