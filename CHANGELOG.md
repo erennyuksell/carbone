@@ -6,6 +6,8 @@
     the Node process. New option `converterEnv` to add variables (`process.env` restores the previous behavior)
   - New option `converterBlockExternalLinks` (off by default): LibreOffice does not load the pictures and files a
     document links to
+  - Fix: the PDF options of `convertTo.formatOptions` reach LibreOffice (as JSON, LibreOffice 7.4+); Carbone accepted
+    them but never passed them on. `{ formatName: 'pdf' }` without `formatOptions` no longer throws
   - Fix corrupted document when data contains the characters `\uFFFE` or `\uFFFF`, which are forbidden in XML
   - Fix corrupted document when a marker contains a double quote and is used in an XML attribute, such as a table of contents entry in ODT
 

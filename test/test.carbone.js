@@ -3366,6 +3366,49 @@ describe('Carbone', function () {
         });
       });
     });
+    it('should give the PDF options to LibreOffice (tagged PDF on and off)', function (done) {
+      fs.readFile(path.join(_templatePath, 'test_word_render_A.docx'), function (err, buffer) {
+        helper.assert(err+'', 'null');
+        var _convertTo = function (tagged) {
+          return { convertTo : { formatName : 'pdf', formatOptions : { UseTaggedPDF : tagged } }, extension : 'docx' };
+        };
+        carbone.convert(buffer, _convertTo(true), function (err, tagged) {
+          assert.equal(err, null);
+          carbone.convert(buffer, _convertTo(false), function (err, untagged) {
+            assert.equal(err, null);
+            // a tagged PDF has a structure tree
+            assert.notEqual(tagged.indexOf('/StructTreeRoot'), -1);
+            assert.equal(untagged.indexOf('/StructTreeRoot'), -1);
+            done();
+          });
+        });
+      });
+    });
+  });
+  describe('PDF options', function () {
+    function parsePdfOptions (convertTo) {
+      var _options = { extension : 'docx' };
+      var _error = input.parseConvertTo(_options, convertTo);
+      return { error : _error, optionsStr : _options.convertTo && _options.convertTo.optionsStr };
+    }
+    it('should write the PDF options as the JSON read by LibreOffice, with their types', function () {
+      var _result = parsePdfOptions({ formatName : 'pdf', formatOptions : { UseTaggedPDF : false, MaxImageResolution : 150, Quality : 85.5, Watermark : 'DRAFT' } });
+      helper.assert(_result.error, null);
+      helper.assert(JSON.parse(_result.optionsStr), {
+        UseTaggedPDF       : { type : 'boolean', value : 'false' },
+        MaxImageResolution : { type : 'long', value : '150' },
+        Quality            : { type : 'double', value : '85.5' },
+        Watermark          : { type : 'string', value : 'DRAFT' }
+      });
+    });
+    it('should give no options to LibreOffice when the user gives none', function () {
+      helper.assert(parsePdfOptions('pdf').optionsStr, '');
+      helper.assert(parsePdfOptions({ formatName : 'pdf' }).optionsStr, '');
+      helper.assert(parsePdfOptions({ formatName : 'pdf', formatOptions : {} }).optionsStr, '');
+    });
+    it('should return an error for an option which is not a boolean, a number or a string', function () {
+      helper.assert(parsePdfOptions({ formatName : 'pdf', formatOptions : { PageRange : [1, 2] } }).error, 'PDF option "PageRange" must be a boolean, a number or a string');
+    });
   });
   describe('render and convert CSV with options', function () {
     var _templatePath = path.join(__dirname, 'datasets');

@@ -48,6 +48,10 @@ Install it from git: `npm install git+https://github.com/erennyuksell/carbone.gi
 
 Pictures are data URIs (`data:image/png;base64,...`). A picture repeated in a loop shows the picture of each row.
 
+PDF export options reach LibreOffice: `convertTo: { formatName: 'pdf', formatOptions: { UseTaggedPDF: false, Watermark: 'DRAFT' } }`.
+Upstream Carbone 3 accepted them but never passed them on. Any option of LibreOffice's `writer_pdf_Export` filter can be
+given as a boolean, a number or a string (LibreOffice 7.4 or later).
+
 Render options of the fork, all off by default:
 
 - `imageUrls: true`: `imageSize` also accepts http and https URLs and downloads them (10 s, 20 MB). Leave it off when the data can come from users, otherwise the server requests any address found in the data.
