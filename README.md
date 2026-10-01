@@ -58,6 +58,12 @@ Render options of the fork, all off by default:
 The formatters write a marker that is handled after rendering. Each render uses its own random marker,
 so text in the data that looks like a formatter (`:drop(p)`, `:imageSize(...)`) is printed as text.
 
+LibreOffice and its Python bridge get only the environment variables they need to run (`PATH`, `HOME`, `LANG`,
+`LC_*`, `SAL_*`, temporary directories, fontconfig and the Windows system variables). The other variables of the
+Node process, often secrets such as database passwords, are not passed: a document converted by LibreOffice can
+read environment variables (CVE-2024-12426 before LibreOffice 24.8.4). Add variables with the option
+`converterEnv: { NAME : 'value' }`; `converterEnv: process.env` passes everything, as before.
+
 ### News 2026/04
 
 [Join us on our Discord](https://discord.gg/kKB3aPYqnh)
