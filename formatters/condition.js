@@ -1,3 +1,5 @@
+var extras = require('../lib/extras');
+
 /**
  * Change the default operator between conditional formatters.
  *
@@ -329,20 +331,6 @@ function ifNIN (d, value) {
 }
 
 /**
- * 删除一个元素，如果条件为真。
- * @param {*} d 
- * @param {*} tag 目前支持p、tbl、tr、tc，够用了
- * @returns 
- */
-function drop (d, tag = 'p') {
-  if (this.isConditionTrue === true || this.isConditionTrue === null && d) {
-    this.stopPropagation = true;
-    return `:drop(${tag})`;
-  }
-  return '';
-}
-
-/**
  * Print a message if the condition is true. It should be used with other formatters to print conditional content.
  *
  * @version 2.0.0
@@ -558,6 +546,24 @@ function _isConditionalBlockEndMarker (marker) {
  */
 function _isConditionalBlockBeginMarker (marker) {
   return /:(?:showBegin|hideBegin)/.test(marker.replace(/\s/g, ''));
+}
+
+/**
+ * Remove the element that holds the marker when the condition is true (fork addition).
+ *
+ * In a Word document `tag` is `p` (paragraph, default), `tr` (table row), `tc` (table column) or
+ * `tbl` (table). In an Excel sheet it is `row`.
+ *
+ * @param  {Mixed}  d    data
+ * @param  {String} tag  element to remove
+ * @return {String}      a marker handled after rendering
+ */
+function drop (d, tag) {
+  if (this.isConditionTrue === true || this.isConditionTrue === null && d) {
+    this.stopPropagation = true;
+    return extras.markerOf(this, 'drop') + '(' + (tag || 'p') + ')';
+  }
+  return '';
 }
 
 module.exports = {

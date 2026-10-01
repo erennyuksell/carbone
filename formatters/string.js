@@ -1,4 +1,6 @@
 var toMd5 = require('./md5');
+var extras = require('../lib/extras');
+var image = require('../lib/extras/image');
 
 
 const LINEBREAK = {
@@ -215,64 +217,6 @@ function substr (d, begin, end) {
 }
 
 /**
- * 转换图片
- * @param {*} d 
- * @param {*} width 图片宽度
- * @param {*} height 图片高度, 不传高度则宽度自动根据比例计算
- * @returns 
- */
-function imageSize(d, width, height) {
-  if (!d) return d
-  if (width && height) return `:imageSize(${d},${width}*${height})`;
-  if (width) return `:imageSize(${d},${width})`;
-  return d;
-}
-
-/**
- * 文字颜色转换
- * @param {*} d 
- * @param {*} color 
- * @returns 
- */
-function fontColor(d, color) {
-  if (color) return `${d}:fontColor(${color})`;
-  return d;
-}
-
-/**
- * 文字大小转换
- * @param {*} d 
- * @param {*} size 
- * @returns 
- */
-function fontSize(d, size) {
-  if (size) return `${d}:fontSize(${size})`;
-  return d;
-}
-
-/**
- * 文字加粗转换
- * @param {*} d 
- * @param {*} flag 约定只有传false的时候才不加粗
- * @returns 
- */
-function fontBold(d, flag) {
-  if (flag === 'false') return d;
-  return `${d}:fontBold(${flag || ''})`;
-}
-
-/**
- * 文字字体转换
- * @param {*} d 
- * @param {*} size 
- * @returns 
- */
-function fontFamily(d, family) {
-  if (family) return `${d}:fontFamily(${family})`;
-  return d;
-}
-
-/**
  * Pad the string from the start with another string
  *
  * @version 3.0.0 new
@@ -344,6 +288,87 @@ function prepend (d, toPrepend) {
   return toPrepend + d;
 }
 
+/**
+ * Insert a picture (fork addition, Word documents).
+ *
+ * The value is a data URI (`data:image/png;base64,...`) or, with the render option `imageUrls`, an
+ * http or https URL. Width and height are in points; with only the width the picture keeps its
+ * proportions, without both it keeps its own size.
+ *
+ * @param  {String} d       picture
+ * @param  {Number} width   width in points
+ * @param  {Number} height  height in points
+ * @return {String}         a marker handled after rendering
+ */
+function imageSize (d, width, height) {
+  var _key = image.register(this, d);
+  if (_key === null) {
+    return '';
+  }
+  var _size = width ? (height ? width + '*' + height : String(width)) : '';
+  return extras.markerOf(this, 'imageSize') + '(' + _key + ',' + _size + ')';
+}
+
+function styled (context, d, name, value) {
+  return (d === null || d === undefined ? '' : d) + extras.markerOf(context, name) + '(' + value + ')';
+}
+
+/**
+ * Color of the text (fork addition, Word documents), hexadecimal like `#FF0000` or `FF0000`.
+ *
+ * @param  {String} d      text
+ * @param  {String} color  color
+ * @return {String}        the text and a marker handled after rendering
+ */
+function fontColor (d, color) {
+  if (!color) {
+    return d;
+  }
+  return styled(this, d, 'fontColor', color);
+}
+
+/**
+ * Size of the text in points (fork addition, Word documents).
+ *
+ * @param  {String} d     text
+ * @param  {Number} size  size in points
+ * @return {String}       the text and a marker handled after rendering
+ */
+function fontSize (d, size) {
+  if (!size) {
+    return d;
+  }
+  return styled(this, d, 'fontSize', size);
+}
+
+/**
+ * Bold text (fork addition, Word documents). `fontBold(false)` leaves the text as it is.
+ *
+ * @param  {String} d     text
+ * @param  {String} flag  'false' to keep the text as it is
+ * @return {String}       the text and a marker handled after rendering
+ */
+function fontBold (d, flag) {
+  if (flag === 'false' || flag === false) {
+    return d;
+  }
+  return styled(this, d, 'fontBold', '');
+}
+
+/**
+ * Font of the text (fork addition, Word documents).
+ *
+ * @param  {String} d       text
+ * @param  {String} family  font name
+ * @return {String}         the text and a marker handled after rendering
+ */
+function fontFamily (d, family) {
+  if (!family) {
+    return d;
+  }
+  return styled(this, d, 'fontFamily', family);
+}
+
 module.exports = {
   lowerCase : lowerCase,
   upperCase : upperCase,
@@ -359,9 +384,11 @@ module.exports = {
   padr      : padr,
   md5       : md5,
   prepend   : prepend,
-  imageSize: imageSize,
-  fontColor: fontColor,
-  fontSize: fontSize,
-  fontBold: fontBold,
-  fontFamily: fontFamily,
+
+  // fork additions (lib/extras)
+  imageSize  : imageSize,
+  fontColor  : fontColor,
+  fontSize   : fontSize,
+  fontBold   : fontBold,
+  fontFamily : fontFamily
 };
