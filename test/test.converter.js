@@ -756,4 +756,30 @@ describe('Converter', function () {
     });
   });
 
+  describe('profiles of stopped processes', function () {
+    afterEach(function (done) {
+      converter.exit(function () {
+        converter.init(defaultOptions, done);
+      });
+    });
+    it('should remove the LibreOffice profiles of stopped Node processes and keep the others', function (done) {
+      var _profile = function (name) {
+        var _dir = path.join(tempPath, name);
+        fs.mkdirSync(path.join(_dir, 'user'), { recursive : true });
+        fs.writeFileSync(path.join(_dir, 'user', 'registrymodifications.xcu'), '<oor:items/>');
+        return _dir;
+      };
+      // pid 999999 is above the default pid limit of Linux and macOS: no process has it
+      var _stopped = _profile('_office_' + params.uidPrefix + '_1700000000000_999999_0');
+      var _running = _profile('_office_' + params.uidPrefix + '_1700000000000_' + process.ppid + '_0');
+      var _notCarbone = _profile('_office_backup');
+      converter.init({ factories : 1, startFactory : true, tempPath : tempPath }, function () {
+        assert.strictEqual(fs.existsSync(_stopped), false);
+        assert.strictEqual(fs.existsSync(_running), true);
+        assert.strictEqual(fs.existsSync(_notCarbone), true);
+        done();
+      });
+    });
+  });
+
 });
