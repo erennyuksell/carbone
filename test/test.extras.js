@@ -363,6 +363,59 @@ describe('extras', function () {
     });
   });
 
+  describe('trimTrailingParagraphs', function () {
+    var EMPTY_ENDING = para('   ') + '<w:p/>' + '<w:p><w:r><w:br w:type="page"/></w:r></w:p>' + '<w:p><w:r><w:t>{d.note}</w:t></w:r></w:p>';
+
+    it('should remove the empty paragraphs at the end of the document, also the ones left empty by markers', function (done) {
+      renderDocx(para('Ada') + EMPTY_ENDING, { note : '' }, { trimTrailingParagraphs : true }, function (err, files, xml) {
+        assert.equal(err, null);
+        assert.ok(xml.includes('>Ada<'), xml);
+        assert.equal(count(xml, '<w:p'), 1, xml);
+        assert.equal(count(xml, 'w:type="page"'), 0, xml);
+        done();
+      });
+    });
+
+    it('should not change the document without the option', function (done) {
+      renderDocx(para('Ada') + EMPTY_ENDING, { note : '' }, {}, function (err, files, xml) {
+        assert.equal(err, null);
+        assert.equal(count(xml, 'w:type="page"'), 1, xml);
+        done();
+      });
+    });
+
+    it('should keep a 1 point paragraph after a table that ends the document', function (done) {
+      var _table = '<w:tbl><w:tr>' + cell('A') + '</w:tr></w:tbl>';
+      renderDocx(para('Ada') + _table + para(' ') + '<w:p/>', {}, { trimTrailingParagraphs : true }, function (err, files, xml) {
+        assert.equal(err, null);
+        var _afterTable = xml.slice(xml.lastIndexOf('</w:tbl>'));
+        assert.equal(count(_afterTable, '<w:p>'), 1, xml);
+        assert.ok(_afterTable.includes('w:line="20" w:lineRule="exact"'), xml);
+        done();
+      });
+    });
+
+    it('should stop at a paragraph which prints something or carries a field, a bookmark or a section break', function (done) {
+      var _field = '<w:p><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>';
+      var _bookmark = '<w:p><w:bookmarkStart w:id="0" w:name="end"/><w:bookmarkEnd w:id="0"/></w:p>';
+      var _section = '<w:p><w:pPr><w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr></w:pPr></w:p>';
+      renderDocx(para('Ada') + _field + _bookmark + _section + '<w:p/>', {}, { trimTrailingParagraphs : true }, function (err, files, xml) {
+        assert.equal(err, null);
+        assert.ok(xml.includes('PAGE') && xml.includes('w:name="end"') && xml.includes('<w:pPr><w:sectPr>'), xml);
+        assert.equal(count(xml, '<w:p/>'), 0, xml);
+        done();
+      });
+    });
+
+    it('should keep the first paragraph of a document that has only empty paragraphs', function (done) {
+      renderDocx(para(' ') + '<w:p/>', {}, { trimTrailingParagraphs : true }, function (err, files, xml) {
+        assert.equal(err, null);
+        assert.equal(count(xml, '<w:p'), 1, xml);
+        done();
+      });
+    });
+  });
+
   describe('more', function () {
     it('should remove a row of a sheet', function (done) {
       buildXlsx(sheetRow(1, 'first') + sheetRow(2, '{d.empty:ifEM():drop(row)}gone') + sheetRow(3, 'third'), function (xlsx) {

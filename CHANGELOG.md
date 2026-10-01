@@ -14,6 +14,8 @@
     the next factory starts
   - New param `reuseOfficeProfile` (off by default): new factories start from a copy of the first ready LibreOffice
     profile instead of an empty one, without the restart LibreOffice does on a new profile
+  - New render option `trimTrailingParagraphs` (off by default): remove the empty paragraphs at the end of a Word
+    document, which push a blank page into the PDF when the content fills the page
   - Fix corrupted document when data contains the characters `\uFFFE` or `\uFFFF`, which are forbidden in XML
   - Fix corrupted document when a marker contains a double quote and is used in an XML attribute, such as a table of contents entry in ODT
 
