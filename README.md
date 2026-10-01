@@ -67,6 +67,10 @@ read environment variables (CVE-2024-12426 before LibreOffice 24.8.4). Add varia
 When LibreOffice is not installed, starting the factories (`startFactory: true`) no longer crashes Node, and a process
 that cannot be started is tried again after 5 seconds instead of in a loop.
 
+`converterBlockExternalLinks: true` (off by default): LibreOffice does not load what a document links to, a picture
+given by a web address or by a path on the server. Turn it on when the documents come from users. Pictures stored in
+the document are not affected.
+
 ### News 2026/04
 
 [Join us on our Discord](https://discord.gg/kKB3aPYqnh)
