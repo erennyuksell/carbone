@@ -58,6 +58,19 @@ Render options of the fork, all off by default:
 The formatters write a marker that is handled after rendering. Each render uses its own random marker,
 so text in the data that looks like a formatter (`:drop(p)`, `:imageSize(...)`) is printed as text.
 
+Document conversion (LibreOffice) in this fork:
+
+- LibreOffice and its Python bridge get only the environment variables they need to run (`PATH`, `HOME`, `LANG`,
+  `LC_*`, `SAL_*`, temporary directories, fontconfig and the Windows system variables). The other variables of
+  the Node process, often secrets such as database passwords, are not passed: a document converted by LibreOffice
+  can read environment variables (CVE-2024-12426 before LibreOffice 24.8.4). Add variables with the option
+  `converterEnv: { NAME : 'value' }`; `converterEnv: process.env` passes everything, as before.
+- `converterBlockExternalLinks: true` (off by default): LibreOffice does not load what a document links to, a
+  picture given by a web address or by a path on the server. Turn it on when the documents come from users.
+  Pictures stored in the document are not affected.
+- When LibreOffice is not installed, starting the factories (`startFactory: true`) no longer crashes Node; a process
+  that cannot be started is tried again after 5 seconds instead of in a loop.
+
 ### News 2026/04
 
 [Join us on our Discord](https://discord.gg/kKB3aPYqnh)

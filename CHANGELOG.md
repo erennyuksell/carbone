@@ -1,5 +1,11 @@
 
 ### v3.8.3
+  - Security: LibreOffice and its Python bridge get only the environment variables they need to run, not the secrets of
+    the Node process. New option `converterEnv` to add variables (`process.env` restores the previous behavior)
+  - New option `converterBlockExternalLinks` (off by default): LibreOffice does not load the pictures and files a
+    document links to
+  - Fix: Node no longer crashes when the factories are started without LibreOffice installed, and a process that
+    cannot be started is retried after 5 seconds instead of in a loop
   - Fix corrupted document when data contains the characters `\uFFFE` or `\uFFFF`, which are forbidden in XML
   - Fix corrupted document when a marker contains a double quote and is used in an XML attribute, such as a table of contents entry in ODT
 

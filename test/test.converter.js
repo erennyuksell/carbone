@@ -6,7 +6,10 @@ var os = require('os');
 var helper = require('../lib/helper');
 var converter = require('../lib/converter');
 var params = require('../lib/params');
-var exec = require('child_process').exec;
+var childProcess = require('child_process');
+var exec = childProcess.exec;
+var http = require('http');
+var yazl = require('yazl');
 var tempPath = path.join(__dirname, 'temp');
 
 var defaultOptions = {
@@ -557,6 +560,137 @@ describe('Converter', function () {
             exec('rm -rf '+_otherFile, done);
           }, 4000);
         });
+      });
+    });
+  });
+
+  describe('environment of LibreOffice and Python', function () {
+    var _originalSpawn = childProcess.spawn;
+    var _spawned = [];
+    beforeEach(function (done) {
+      _spawned = [];
+      childProcess.spawn = function (command, args, options) {
+        _spawned.push({ command : command, options : options });
+        return _originalSpawn.apply(this, arguments);
+      };
+      converter.exit(done);
+    });
+    afterEach(function (done) {
+      childProcess.spawn = _originalSpawn;
+      delete process.env.CARBONE_TEST_SECRET;
+      params.converterEnv = {};
+      converter.exit(function () {
+        converter.init(defaultOptions, done);
+      });
+    });
+    it('should keep only the variables LibreOffice and Python need, then add converterEnv', function () {
+      var _env = converter.buildEnvironment({
+        PATH              : '/usr/bin',
+        Path              : 'C:\\Windows',
+        HOME              : '/home/carbone',
+        LANG              : 'tr_TR.UTF-8',
+        LC_ALL            : 'C.UTF-8',
+        SAL_USE_VCLPLUGIN : 'svp',
+        MONGODB_URI       : 'mongodb://user:password@host/db',
+        JWT_SECRET        : 'secret',
+        AWS_SECRET_ACCESS_KEY : 'secret'
+      }, { FONTCONFIG_SYSROOT : '/fonts' });
+      assert.deepStrictEqual(_env, {
+        PATH               : '/usr/bin',
+        Path               : 'C:\\Windows',
+        HOME               : '/home/carbone',
+        LANG               : 'tr_TR.UTF-8',
+        LC_ALL             : 'C.UTF-8',
+        SAL_USE_VCLPLUGIN  : 'svp',
+        FONTCONFIG_SYSROOT : '/fonts'
+      });
+    });
+    it('should give everything when converterEnv is process.env, as before', function () {
+      process.env.CARBONE_TEST_SECRET = 'visible';
+      var _env = converter.buildEnvironment(process.env, process.env);
+      assert.strictEqual(_env.CARBONE_TEST_SECRET, 'visible');
+    });
+    it('should not give the secrets of the parent process to LibreOffice and Python', function (done) {
+      process.env.CARBONE_TEST_SECRET = 'not-for-libreoffice';
+      converter.init({ factories : 1, startFactory : true, tempPath : tempPath }, function (factories) {
+        assert.strictEqual(_spawned.length, 2);
+        _spawned.forEach(function (spawned) {
+          assert.ok(spawned.options.env.PATH, spawned.command + ' gets PATH');
+          assert.strictEqual(spawned.options.env.CARBONE_TEST_SECRET, undefined, spawned.command + ' does not get the secret');
+        });
+        // On Linux, read the environment of the running processes too (macOS does not show it for signed apps)
+        if (process.platform === 'linux') {
+          [factories[0].pid, factories[0].pythonThread.pid].forEach(function (pid) {
+            var _environ = fs.readFileSync('/proc/' + pid + '/environ', 'utf8');
+            assert.strictEqual(_environ.indexOf('CARBONE_TEST_SECRET'), -1);
+          });
+        }
+        done();
+      });
+    });
+  });
+
+  describe('links of a document', function () {
+    var PICTURE = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=', 'base64');
+    var _server = null;
+    var _requests = 0;
+    before(function (done) {
+      _server = http.createServer(function (req, res) {
+        _requests++;
+        res.writeHead(200, { 'Content-Type' : 'image/png' });
+        res.end(PICTURE);
+      });
+      _server.listen(0, '127.0.0.1', done);
+    });
+    after(function (done) {
+      _server.close(done);
+    });
+    afterEach(function (done) {
+      params.converterBlockExternalLinks = false;
+      converter.exit(function () {
+        converter.init(defaultOptions, done);
+      });
+    });
+
+    /* A DOCX whose only picture is linked to an address (not stored in the document) */
+    function writeLinkedPictureDocx (url, outputPath, callback) {
+      var _zip = new yazl.ZipFile();
+      _zip.addBuffer(Buffer.from('<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'), '[Content_Types].xml');
+      _zip.addBuffer(Buffer.from('<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'), '_rels/.rels');
+      _zip.addBuffer(Buffer.from('<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="' + url + '" TargetMode="External"/></Relationships>'), 'word/_rels/document.xml.rels');
+      _zip.addBuffer(Buffer.from('<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body><w:p><w:r><w:drawing><wp:inline><wp:extent cx="914400" cy="914400"/><wp:docPr id="1" name="Picture"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="1" name="Picture"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:link="rId9"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p></w:body></w:document>'), 'word/document.xml');
+      _zip.outputStream.pipe(fs.createWriteStream(outputPath)).on('close', callback);
+      _zip.end();
+    }
+
+    function convertLinkedPicture (blockLinks, callback) {
+      converter.exit(function () {
+        converter.init({ factories : 1, tempPath : tempPath, converterBlockExternalLinks : blockLinks }, function () {
+          var _input = path.join(tempPath, 'linked.docx');
+          writeLinkedPictureDocx('http://127.0.0.1:' + _server.address().port + '/picture.png', _input, function () {
+            _requests = 0;
+            converter.convertFile(_input, 'writer_pdf_Export', '', path.join(tempPath, 'linked.pdf'), function (err) {
+              setTimeout(function () {
+                callback(err, _requests);
+              }, 300);
+            });
+          });
+        });
+      });
+    }
+
+    it('should load a linked picture by default', function (done) {
+      convertLinkedPicture(false, function (err, requests) {
+        assert.strictEqual(err, null);
+        assert.ok(requests > 0, 'LibreOffice requests the picture');
+        done();
+      });
+    });
+    it('should not open the address of a linked picture if converterBlockExternalLinks is true', function (done) {
+      convertLinkedPicture(true, function (err, requests) {
+        assert.strictEqual(err, null);
+        assert.strictEqual(requests, 0);
+        done();
       });
     });
   });
