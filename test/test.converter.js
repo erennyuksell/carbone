@@ -789,6 +789,8 @@ describe('Converter', function () {
       });
     };
     afterEach(function (done) {
+      params.reuseOfficeProfile = false;
+      params.converterBlockExternalLinks = false;
       converter.exit(function () {
         converter.init(defaultOptions, done);
       });
@@ -817,6 +819,20 @@ describe('Converter', function () {
             done();
           });
         });
+      });
+    });
+    it('should not keep converterBlockExternalLinks in the template, so that the option can be turned off later', function (done) {
+      _templates().forEach(function (name) {
+        helper.rmDirRecursive(path.join(tempPath, name));
+      });
+      var _settings = function (profile) {
+        return fs.readFileSync(path.join(profile, 'user', 'registrymodifications.xcu'), 'utf8');
+      };
+      var _options = { factories : 1, startFactory : true, tempPath : tempPath, reuseOfficeProfile : true, converterBlockExternalLinks : true };
+      converter.init(_options, function (factories) {
+        assert.ok(_settings(factories['0'].userCachePath).indexOf('BlockUntrustedRefererLinks') !== -1, 'the factory blocks links');
+        assert.strictEqual(_settings(path.join(tempPath, _templates()[0])).indexOf('BlockUntrustedRefererLinks'), -1, 'the template does not');
+        done();
       });
     });
   });
