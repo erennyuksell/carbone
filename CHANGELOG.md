@@ -10,6 +10,8 @@
     them but never passed them on. `{ formatName: 'pdf' }` without `formatOptions` no longer throws
   - New param `factoryRecycleAfter` (0, off by default): restart a LibreOffice process after it converted this number of
     documents
+  - Fix: the LibreOffice profiles left in `tempPath` by a Node process which stopped without cleaning are removed when
+    the next factory starts
   - Fix corrupted document when data contains the characters `\uFFFE` or `\uFFFF`, which are forbidden in XML
   - Fix corrupted document when a marker contains a double quote and is used in an XML attribute, such as a table of contents entry in ODT
 

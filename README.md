@@ -55,6 +55,10 @@ given as a boolean, a number or a string (LibreOffice 7.4 or later).
 `factoryRecycleAfter: 200` restarts a LibreOffice process after it converted 200 documents (LibreOffice's memory grows
 with use). Off by default; it works next to the memory rule (`factoryMemoryFileSize`, `factoryMemoryThreshold`).
 
+LibreOffice profiles left in `tempPath` by a Node process that stopped without cleaning (crash, `SIGKILL`) are removed
+when the next factory starts. A profile is named after the process which created it; profiles of running processes are
+kept.
+
 Render options of the fork, all off by default:
 
 - `imageUrls: true`: `imageSize` also accepts http and https URLs and downloads them (10 s, 20 MB). Leave it off when the data can come from users, otherwise the server requests any address found in the data.
