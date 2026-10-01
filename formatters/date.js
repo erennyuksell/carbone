@@ -1,4 +1,11 @@
 var dayjs = require('dayjs');
+// the plugins these formatters use, in the order of lib/index.js (dayjs installs a plugin once)
+dayjs.extend(require('dayjs/plugin/advancedFormat'));
+dayjs.extend(require('dayjs/plugin/localizedFormat'));
+dayjs.extend(require('dayjs/plugin/customParseFormat'));
+dayjs.extend(require('dayjs/plugin/utc'));
+dayjs.extend(require('dayjs/plugin/isoWeek'));
+dayjs.extend(require('dayjs/plugin/timezone'));
 
 
 /**
@@ -35,7 +42,8 @@ var dayjs = require('dayjs');
  */
 function formatD (d, patternOut, patternIn) {
   if (d !== null && typeof d !== 'undefined') {
-    return parse(d, patternIn).tz(this.timezone).locale(this.lang).format(patternOut);
+    var _date = parse(d, patternIn).tz(this.timezone).locale(this.lang);
+    return _date.format(isoWeekAsText(_date, patternOut));
   }
   return d;
 }
@@ -62,7 +70,9 @@ function formatD (d, patternOut, patternIn) {
  */
 function addD (d, amount, unit, patternIn) {
   if (d !== null && typeof d !== 'undefined') {
-    return parse(d, patternIn).add(parseInt(amount, 10), unit || 'day');
+    return onWallTime(parse(d, patternIn), function (date) {
+      return date.add(parseInt(amount, 10), unit || 'day');
+    });
   }
   return d;
 }
@@ -89,7 +99,9 @@ function addD (d, amount, unit, patternIn) {
  */
 function subD (d, amount, unit, patternIn) {
   if (d !== null && typeof d !== 'undefined') {
-    return parse(d, patternIn).subtract(parseInt(amount, 10), unit || 'day');
+    return onWallTime(parse(d, patternIn), function (date) {
+      return date.subtract(parseInt(amount, 10), unit || 'day');
+    });
   }
   return d;
 }
@@ -114,7 +126,9 @@ function subD (d, amount, unit, patternIn) {
  */
 function startOfD (d, unit, patternIn) {
   if (d !== null && typeof d !== 'undefined') {
-    return parse(d, patternIn).startOf( unit || 'year');
+    return onWallTime(parse(d, patternIn), function (date) {
+      return date.startOf(unit || 'year');
+    });
   }
   return d;
 }
@@ -139,7 +153,9 @@ function startOfD (d, unit, patternIn) {
  */
 function endOfD (d, unit, patternIn) {
   if (d !== null && typeof d !== 'undefined') {
-    return parse(d, patternIn).endOf(unit || 'year');
+    return onWallTime(parse(d, patternIn), function (date) {
+      return date.endOf(unit || 'year');
+    });
   }
   return d;
 }
@@ -173,7 +189,18 @@ function convDate (d, patternIn, patternOut) {
 
 
 /**
- * Convert old MomentJS format to DayJS format
+ * Timezone of a date written without offset ("20160131", "2016-01-31 10:00"): Carbone reads it as a date and time of
+ * Europe/Paris, then converts it to the output timezone (options.timezone). It used to come from the timezone plugin
+ * of dayjs; with dayjs/plugin/timezone, dayjs(text) reads the text in the timezone of the server, and the same
+ * template printed another day on a server in UTC or in Istanbul.
+ */
+var INPUT_TIMEZONE = 'Europe/Paris';
+/* A time followed by an offset: "15:57:23Z", "15:57:23.769+03:00", "15:57 -0800" (not the year of "06-01-2014") */
+var TIME_WITH_OFFSET = /\d{2}:\d{2}(?::\d{2}(?:[.,]\d+)?)?\s*(?:Z|[+-]\d{2}(?::?\d{2})?)$/i;
+
+/**
+ * Read a date. A text with a time and an offset ("...T10:00:00Z", "...10:00+03:00"), a text read with an offset token
+ * (Z, ZZ), a number and a unix timestamp ("X", "x") are instants; any other text is read in INPUT_TIMEZONE.
  *
  * @private
  * @param      {string}  d          not undefined/null date
@@ -185,13 +212,68 @@ function parse (d, patternIn) {
   if (typeof(d) === 'object' && d.isValid) {
     return d;
   }
-  if (!patternIn) {
-    return dayjs(d + '');
+  var _text = d + '';
+  var _isInstant = typeof(d) === 'number' || patternIn === 'X' || patternIn === 'x' || /Z/.test(patternIn || '') || TIME_WITH_OFFSET.test(_text.trim());
+  if (_isInstant === true) {
+    return patternIn ? dayjs(_text, patternIn) : dayjs(_text);
   }
-  return dayjs(d, patternIn);
+  // read the fields of the text as they are (dayjs.tz(text, pattern, zone) reads them in the server's timezone),
+  // then place this date and time in INPUT_TIMEZONE
+  var _wallTime = patternIn ? dayjs.utc(_text, patternIn) : dayjs.utc(_text);
+  if (_wallTime.isValid() === false) {
+    // an invalid text stays invalid, as with dayjs(text)
+    return patternIn ? dayjs(_text, patternIn) : dayjs(_text);
+  }
+  return dayjs.tz(_wallTime.format('YYYY-MM-DDTHH:mm:ss.SSS'), INPUT_TIMEZONE);
 }
 
 
+
+/**
+ * Calendar operation (add days, start of month...) on the date and time of INPUT_TIMEZONE, then read back in that
+ * timezone. Done on the server's own clock, it gave another hour or day when the server is not in INPUT_TIMEZONE, and
+ * around a change of summer time.
+ *
+ * @private
+ * @param  {Object}   date      dayjs
+ * @param  {Function} operation function(dayjs in UTC holding the wall time) => dayjs
+ * @return {Object}             dayjs
+ */
+function onWallTime (date, operation) {
+  if (date.isValid() === false) {
+    return date;
+  }
+  var _wallTime = date.tz(INPUT_TIMEZONE).format('YYYY-MM-DDTHH:mm:ss.SSS');
+  var _result = operation(dayjs.utc(_wallTime));
+  return dayjs.tz(_result.format('YYYY-MM-DDTHH:mm:ss.SSS'), INPUT_TIMEZONE);
+}
+
+/**
+ * dayjs computes the ISO week (W, WW, GGGG) of a date in a timezone with the server's clock: on a server in UTC, a
+ * Wednesday at midnight in Paris was in the previous week. The tokens are replaced by the week of the date and time
+ * of the timezone, as text.
+ *
+ * @private
+ * @param  {Object} date    dayjs in the output timezone
+ * @param  {String} pattern output pattern
+ * @return {String}         pattern without ISO week tokens
+ */
+function isoWeekAsText (date, pattern) {
+  if (typeof(pattern) !== 'string' || /W|GGGG/.test(pattern) === false) {
+    return pattern;
+  }
+  var _wallTime = dayjs.utc(date.format('YYYY-MM-DDTHH:mm:ss.SSS'));
+  return pattern.replace(/\[[^\]]*]|WW|W|GGGG/g, function (token) {
+    if (token[0] === '[') {
+      return token;
+    }
+    if (token === 'GGGG') {
+      return '[' + _wallTime.isoWeekYear() + ']';
+    }
+    var _week = String(_wallTime.isoWeek());
+    return '[' + (token === 'WW' && _week.length < 2 ? '0' + _week : _week) + ']';
+  });
+}
 
 module.exports = {
   formatD,
