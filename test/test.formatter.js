@@ -6,6 +6,47 @@ var numberFormatter = require('../formatters/number');
 var helper = require('../lib/helper');
 
 describe('formatter', function () {
+  describe('dates and the timezone of the server', function () {
+    var _serverTimezone = process.env.TZ;
+    afterEach(function () {
+      if (_serverTimezone === undefined) {
+        delete process.env.TZ;
+      }
+      else {
+        process.env.TZ = _serverTimezone;
+      }
+    });
+    it('should give the same dates whatever the timezone of the server', function () {
+      var _paris = { lang : 'en', timezone : 'Europe/Paris' };
+      var _london = { lang : 'en', timezone : 'Europe/London' };
+      var _results = {};
+      // Node takes a change of process.env.TZ into account at once
+      ['Europe/Paris', 'UTC', 'Europe/Istanbul', 'America/New_York', 'Asia/Tokyo'].forEach(function (serverTimezone) {
+        process.env.TZ = serverTimezone;
+        _results[serverTimezone] = [
+          dateFormatter.formatD.call(_paris, '20140131', 'dddd'),
+          dateFormatter.formatD.call(_paris, '06-01-2014', 'YYYY-MM-DD HH:mm', 'MM-DD-YYYY'),
+          dateFormatter.formatD.call(_paris, dateFormatter.addD.call(_paris, '2014-06-01 14:00:00', 1, 'day'), 'YYYY-MM-DD HH:mm'),
+          dateFormatter.formatD.call(_paris, dateFormatter.startOfD.call(_paris, '2014-06-01 14:00:00', 'month'), 'YYYY-MM-DD HH:mm'),
+          dateFormatter.formatD.call(_london, dateFormatter.addD.call(_london, '2020-10-23T22:00:00Z', 2, 'day'), 'LLL'),
+          dateFormatter.formatD.call({ lang : 'fr', timezone : 'Europe/Paris' }, '20101201', 'W WW GGGG', 'YYYYMMDD'),
+          dateFormatter.formatD.call(_paris, '2017-05-10T15:57:23+03:00', 'YYYY-MM-DD HH:mm')
+        ];
+      });
+      var _expected = ['Friday', '2014-06-01 00:00', '2014-06-02 14:00', '2014-06-01 00:00', 'October 25, 2020 11:00 PM', '48 48 2010', '2017-05-10 14:57'];
+      Object.keys(_results).forEach(function (serverTimezone) {
+        helper.assert(_results[serverTimezone], _expected);
+      });
+    });
+    it('should not change the default lang and timezone of dayjs', function () {
+      var carbone = require('../lib/index');
+      var dayjs = require('dayjs');
+      carbone.set({ lang : 'fr', timezone : 'Asia/Tokyo' });
+      helper.assert(dayjs.locale(), 'en');
+      helper.assert(dayjs.tz('2020-06-01 12:00').utcOffset(), dayjs('2020-06-01 12:00').utcOffset());
+      carbone.reset();
+    });
+  });
   describe('convDate', function () {
     var _tz = 'Europe/Paris';
     it('should accept use this.lang to set convert date', function () {

@@ -16,6 +16,10 @@
     profile instead of an empty one, without the restart LibreOffice does on a new profile
   - New render option `trimTrailingParagraphs` (off by default): remove the empty paragraphs at the end of a Word
     document, which push a blank page into the PDF when the content fills the page
+  - Fix: the date formatters (`formatD`, `convDate`, `addD`, `subD`, `startOfD`, `endOfD`, ISO week `W`) give the same
+    result whatever the timezone of the server. Since v3.8.2 a date without offset was read in the server's timezone
+    (another day on a server in UTC or Istanbul); it is read in Europe/Paris again, as documented
+  - Fix: Carbone no longer changes the default lang and timezone of dayjs, which the application may use too
   - Fix corrupted document when data contains the characters `\uFFFE` or `\uFFFF`, which are forbidden in XML
   - Fix corrupted document when a marker contains a double quote and is used in an XML attribute, such as a table of contents entry in ODT
 
