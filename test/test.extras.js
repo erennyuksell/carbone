@@ -300,6 +300,39 @@ describe('extras', function () {
         done();
       });
     });
+
+    it('should fit each picture in the template box without stretching it', function (done) {
+      // The placeholder box is 952500 x 952500 EMU (square)
+      var _landscape = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADklEQVQImWM4gQQYcHIAJLUcIfXArK4AAAAASUVORK5CYII=';
+      var _portrait = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAAECAIAAADETxJQAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADklEQVQImWM4AQMMeFkAMsYcIfIUkm8AAAAASUVORK5CYII=';
+      var _wide = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAACCAIAAADq9gq6AAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAD0lEQVQImWM4gQMw4JIAAKnfJYFX+LeiAAAAAElFTkSuQmCC';
+      var _body = placeholderDrawing('{d.rows[i].img}') + placeholderDrawing('{d.rows[i+1].img}');
+      var _data = { rows : [{ img : _landscape }, { img : _portrait }, { img : _wide }, { img : DATA_URI_A }] };
+      renderDocx(_body, _data, {}, function (err, files, xml) {
+        assert.equal(err, null);
+        var _extents = xml.match(/<wp:extent cx="\d+" cy="\d+"\/>/g);
+        var _shapes = xml.match(/<a:ext cx="\d+" cy="\d+"\/>/g);
+        assert.deepEqual(_extents, [
+          '<wp:extent cx="952500" cy="714375"/>',
+          '<wp:extent cx="714375" cy="952500"/>',
+          '<wp:extent cx="952500" cy="238125"/>',
+          '<wp:extent cx="952500" cy="952500"/>'
+        ]);
+        assert.deepEqual(_shapes, _extents.map(function (extent) {
+          return extent.replace('wp:extent', 'a:ext');
+        }));
+        done();
+      });
+    });
+
+    it('should keep the template box when the size of the picture cannot be read', function (done) {
+      var _body = placeholderDrawing('{d.img}');
+      renderDocx(_body, { img : 'data:image/png;base64,bm90IGEgcGljdHVyZQ==' }, {}, function (err, files, xml) {
+        assert.equal(err, null);
+        assert.ok(xml.includes('<wp:extent cx="952500" cy="952500"/>'), xml);
+        done();
+      });
+    });
   });
 
   describe('imageSize', function () {
